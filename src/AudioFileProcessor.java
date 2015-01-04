@@ -3,14 +3,13 @@ import com.sun.xml.internal.bind.v2.runtime.output.StAXExStreamWriterOutput;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.*;
 import javax.sound.sampled.*;
 
 class AudioFileProcessor {
     public static String location = "/home/thelesteanu/Desktop/resurse PS/Lium Precision/";
-    public static String liumFile = location + "resurse/20131119.seg";
-    public static String labelFile = location + "resurse/20131119.txt";
+    public static String liumFile = location + "resurse/jurnal30oct.seg";
+    public static String labelFile = location + "resurse/30oct_ora19.txt";
 
     public static void main(String[] args) {
         int bumper = 0;
@@ -97,20 +96,12 @@ class AudioFileProcessor {
             try {
                 while ((line = br.readLine()) != null) {
 
-                    if (line.contains("vorbitor") || line.contains("V")) {
+                    if (line.contains("vorbitor") || line.contains("V") || line.contains("Vorbitor")) {
                         if (speakerId != "") {
                             speakingMapArrayList.add(new SpeakingMap(speakerId, speakingPeriods));
                         }
                         String parser[] = line.split("\t");
-                        System.out.println(line);System.out.println(parser[0]);
-                        System.out.println(parser[1]);
-                        /*String thirdParam[] = parser[2].split(" ");
-                        if (thirdParam[1].contains("-")) {
-                            String[] speaker = thirdParam[1].split("-");
-                            speakerId = speaker[0];
-                        } else {
-                            speakerId = thirdParam[1];
-                        }*/
+                        speakerId = parser[2];
                         if (!speakerArray.contains(speakerId)) {
                             speakerArray.add(speakerId);
                         }
@@ -151,38 +142,94 @@ class AudioFileProcessor {
         float segmentNumber = 0;
         double correctDuration = 0;
         double liumDuration = 0;
+        Map speakerResultMap = new HashMap();
         float newBumper = (float) bumper / 1000;
         for (SpeakingMap LiumSpeaker : LiumArray) {
             for (SpeakingPeriod LiumPeriod : LiumSpeaker.getSpeakingPeriodsArray()) {
                 liumDuration = liumDuration + LiumPeriod.getDuration();
                 segmentNumber++;
                 for (SpeakingPeriod LabelSpeaker : LabelsArray.get(0).getSpeakingPeriodsArray()) {
-                    float LiumEnd = LiumPeriod.getStart() + LiumPeriod.getDuration();
 
+                    float LiumEnd = LiumPeriod.getStart() + LiumPeriod.getDuration();
                     float LabelEnd = LabelSpeaker.getStart() + LabelSpeaker.getDuration();
+
                     if (LiumPeriod.getStart() > LabelSpeaker.getStart() - newBumper && LiumEnd < LabelEnd + newBumper) {
                         ok++;
+                        LiumPeriod.isCorrect(true);
                         correctDuration = correctDuration + LiumPeriod.getDuration();
+                        String[] speakerInfo = LabelSpeaker.getSpeakerId().split("_");
+                        String speakerName = speakerInfo[0] + speakerInfo[1];
+                        if (speakerResultMap.containsKey(speakerName)) {
+                            List<LiumSpeakerInstance> LiumInstances = (ArrayList) speakerResultMap.get(speakerName);
+                            boolean isInList = false;
+                            for (int i = 0; i < LiumInstances.size(); i++) {
+                                LiumSpeakerInstance speakerInstance = LiumInstances.get(i);
+                                if (LiumPeriod.getSpeakerId() == speakerInstance.getLiumSpeakerInstanceName()) {
+                                    speakerInstance.incrementOccurencies();
+                                    isInList = true;
+                                }
+                            }
+                            if (!isInList) {
+                                LiumInstances.add(new LiumSpeakerInstance(LiumPeriod.getSpeakerId()));
+                            }
+                            speakerResultMap.put(speakerName, LiumInstances);
+
+                        } else {
+                            List<LiumSpeakerInstance> LiumInstances = new ArrayList<LiumSpeakerInstance>();
+                            LiumInstances.add(new LiumSpeakerInstance(LiumPeriod.getSpeakerId()));
+                            speakerResultMap.put(speakerName, LiumInstances);
+                        }
+                    } else if (LiumPeriod.getStart() > LabelSpeaker.getStart() - 500 && LiumEnd < LabelEnd + 500) {
+
                     }
+
                     if (ok == segmentNumber) break;
                 }
             }
         }
 
+        Iterator it = speakerResultMap.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry pairs = (Map.Entry) it.next();
+            List theList = (ArrayList) pairs.getValue();
+            System.out.println("\n" + pairs.getKey());
+            System.out.println("______________");
+            for (int i = 0; i < theList.size(); i++) {
+                LiumSpeakerInstance speakerInstance = (LiumSpeakerInstance) theList.get(i);
+                System.out.println(speakerInstance.getLiumSpeakeInstanceComplete());
+            }
+            System.out.println("______________\n");
+            it.remove(); // avoids a ConcurrentModificationException
+        }
+        boolean errors = false;
+        for (SpeakingMap LiumSpeaker : LiumArray) {
+            for (SpeakingPeriod LiumPeriod : LiumSpeaker.getSpeakingPeriodsArray()) {
+                if (!LiumPeriod.getStatus()) {
+                    if (!errors) {
+                        errors = true;
+                        System.out.println("Urmatoarele segmente sunt " +
+                                "prezente in etichetarea a 2 vorbitori conform Lium:\n__________");
+                    }
 
-        System.out.println("");
+                    System.out.println("Eroare la:  " + LiumPeriod.getSpeakerId() +
+                            ". Segmentul incepe la secunda: " + LiumPeriod.getStart() + ". Segmentul dureaza: " +
+                            LiumPeriod.getDuration() + " secunde si este continut de etichetarile a 2 vorbitori.");
+                }
+            }
+        }
+
+
+        System.out.println("\n");
         System.out.println("Nume fisier = " + liumFile);
         System.out.println("Fisier etichete = " + labelFile);
         System.out.println("");
         System.out.println("_________________________");
-        System.out.println("Correct Lium Segments= " + ok);
-        System.out.println("Total No of Segments= " + segmentNumber);
+        System.out.println("Segmente lium atribuite unui singur vorbitor= " + ok);
+        System.out.println("Numar total de segmente= " + segmentNumber);
         float precision = (ok / segmentNumber) * 100;
-        System.out.println("Precision= " + String.format("%.2f", precision) + " %");
+        System.out.println("Raportul segmentelor atribuite unui singur vorbitor= " + String.format("%.2f", precision) + " %");
         System.out.println("______________");
-        System.out.println("Lium labels total duration = " + String.format("%.2f", liumDuration) + " seconds");
-        System.out.println("Lium duration of the correct diarization labels = " + String.format("%.2f", correctDuration) + " seconds");
-        System.out.println("Precision scale for duration = " + String.format("%.2f", ((correctDuration / liumDuration) * 100)) + " %");
+        System.out.println("Durata totala a segmentelor = " + String.format("%.2f", liumDuration) + " secunde");
     }
 
 }

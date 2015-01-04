@@ -9,11 +9,13 @@ public class SpeakingPeriod {
     public float start;
     public float duration;
     public String speakerId;
+    public boolean correct;
 
     public SpeakingPeriod(float startValue, float durationValue, String speakerIdValue) {
         start = startValue;
         duration = durationValue;
         speakerId = speakerIdValue;
+        correct= false;
     }
 
     public void setStart(float newValue) {
@@ -38,6 +40,14 @@ public class SpeakingPeriod {
 
     public String getSpeakerId() {
         return speakerId;
+    }
+
+    public void isCorrect(boolean status){
+        correct = status;
+    }
+
+    public boolean getStatus(){
+        return correct;
     }
 
 }
