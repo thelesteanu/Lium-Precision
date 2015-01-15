@@ -8,8 +8,8 @@ import javax.sound.sampled.*;
 
 class AudioFileProcessor {
     public static String location = "/home/thelesteanu/Desktop/resurse PS/Lium Precision/";
-    public static String liumFile = location + "resurse/jurnal30oct.seg";
-    public static String labelFile = location + "resurse/30oct_ora19.txt";
+    public static String liumFile = location + "resurse/jurnal27oct15.seg";
+    public static String labelFile = location + "resurse/27oct_ora15.txt";
 
     public static void main(String[] args) {
         int bumper = 0;
@@ -202,6 +202,7 @@ class AudioFileProcessor {
             it.remove(); // avoids a ConcurrentModificationException
         }
         boolean errors = false;
+        float durataEronata = 0;
         for (SpeakingMap LiumSpeaker : LiumArray) {
             for (SpeakingPeriod LiumPeriod : LiumSpeaker.getSpeakingPeriodsArray()) {
                 if (!LiumPeriod.getStatus()) {
@@ -211,6 +212,7 @@ class AudioFileProcessor {
                                 "prezente in etichetarea a 2 vorbitori conform Lium:\n__________");
                     }
 
+                    durataEronata=durataEronata+LiumPeriod.getDuration();
                     System.out.println("Eroare la:  " + LiumPeriod.getSpeakerId() +
                             ". Segmentul incepe la secunda: " + LiumPeriod.getStart() + ". Segmentul dureaza: " +
                             LiumPeriod.getDuration() + " secunde si este continut de etichetarile a 2 vorbitori.");
@@ -230,6 +232,13 @@ class AudioFileProcessor {
         System.out.println("Raportul segmentelor atribuite unui singur vorbitor= " + String.format("%.2f", precision) + " %");
         System.out.println("______________");
         System.out.println("Durata totala a segmentelor = " + String.format("%.2f", liumDuration) + " secunde");
+        System.out.println("Durata segmentelor eronate = "+ String.format("%.2f", durataEronata) + " secunde");
+        if(durataEronata>0){
+            System.out.println("Raportul intre duratele segmentelor corecte si totalul duratei tuturor segmentelor = "+ (100 - durataEronata*100/liumDuration)+ " %");
+        }
+        else{
+            System.out.println("Raportul intre duratele segmentelor corecte si totalul duratei tuturor segmentelor =  100%");
+        }
     }
 
 }
